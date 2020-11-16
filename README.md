@@ -1,1 +1,3 @@
-# RL_project\ See details in .ipynb
+# RL_project
+
+See details in .ipynb
