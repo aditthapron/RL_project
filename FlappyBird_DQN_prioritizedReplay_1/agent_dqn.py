@@ -50,7 +50,7 @@ class Agent_DQN(Agent):
         self.step_epsilon =  (self.epsilon-self.min_epsilon)/(1E6)
         self.env=env
         self.history = []
-        self.buffer_size = 5000
+        self.buffer_size = 2000
         self.learning_rate = 1e-4
         self.name = "best_1_3"
         self.batch_size=32
@@ -124,7 +124,7 @@ class Agent_DQN(Agent):
         self.history.append(np.array([state,action,reward,done,state_next]))
 
         
-        if len(self.history) > 8000:
+        if len(self.history) > 6000:
             self.history.pop(0)
 
 
@@ -201,7 +201,7 @@ class Agent_DQN(Agent):
                 state = state_next
 
                 if frame_count % 8 == 0 and len(self.history) >= self.buffer_size:
-                    if frame_count%2000==0:
+                    if frame_count%800==0:
                         #update priority vector
                         self.replay_buffer(refresh = True)
                     indice = self.replay_buffer()
@@ -236,8 +236,8 @@ class Agent_DQN(Agent):
             if len(episode_reward_history) > 30:
                 del episode_reward_history[:1]
             running_reward = np.mean(episode_reward_history)
-            if ep%500==0:
-                print("Episode:\t{},\t Avereged reward: {:.2f}\n".format(ep,running_reward))
+#             if ep%500==0:
+#                 print("Episode:\t{},\t Avereged reward: {:.2f}\n".format(ep,running_reward))
             f.write("Episode:\t{},\t Avereged reward: {:.2f}\n".format(ep,running_reward))
             if running_reward> best_reward:
                 best_reward= running_reward
