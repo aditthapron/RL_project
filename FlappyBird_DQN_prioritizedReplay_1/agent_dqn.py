@@ -50,15 +50,19 @@ class Agent_DQN(Agent):
         self.step_epsilon =  (self.epsilon-self.min_epsilon)/(1E6)
         self.env=env
         self.history = []
-        self.buffer_size = 2000
+        self.buffer_size = min(args.history_size//5,2000)
+        self.history_size = args.history_size
         self.learning_rate = 1e-4
-        self.name = "best_1_3"
+        self.name = args.name
         self.batch_size=32
         self.gamma = 0.99
         self.priority=[]
         self.w = 144
         self.h = 256
-        if args.test_dqn:
+        self.mode = args.mode
+        self.delay = args.delay
+        self.epoch = args.continue_epoch
+        if args.test_dqn or self.epoch>0:
             #you can load your model here
             print('loading trained model')
             ###########################
@@ -111,7 +115,7 @@ class Agent_DQN(Agent):
 
         return action
     
-    def push(self,state,action,reward,done,state_next):
+    def push(self,state,action,reward,done,state_next,smooth=None):
         """ You can add additional arguments as you need. 
         Push new data to buffer and remove the old one if the buffer is full.
         
@@ -121,10 +125,10 @@ class Agent_DQN(Agent):
         """
         ###########################
         # YOUR IMPLEMENTATION HERE #
-        self.history.append(np.array([state,action,reward,done,state_next]))
+        self.history.append(np.array([state,action,reward,done,state_next,smooth]))
 
         
-        if len(self.history) > 6000:
+        if len(self.history) > self.history_size:
             self.history.pop(0)
 
 
@@ -137,24 +141,27 @@ class Agent_DQN(Agent):
         """
         ###########################
         # YOUR IMPLEMENTATION HERE #
-        if refresh:
-            self.priority = np.zeros(len(self.history))
-            for i in range(len(self.history)):
-            	max_reward, _ = torch.max(self.model_target(torch.from_numpy(self.history[i][4]).to(self.device).float().view(1,12,self.h,self.w)), axis=1)
-            	max_reward = max_reward.detach().item() 
-            	Q = self.model(torch.from_numpy(self.history[i][0]).to(self.device).float().view(1,12,self.h,self.w))[0,self.history[i][1]].detach().item()
-            	self.priority[i] = abs((self.history[i][2] + self.gamma * max_reward - Q)) 
-            self.priority = self.priority / sum(self.priority)
-            return 0
-        priority = np.zeros(len(self.history))
-        priority[:len(self.priority)] = self.priority
-        if sum(priority)==0:
-            indices = np.random.choice(range(len(self.history)), size=self.batch_size)
+        if 'prioritized' in self.mode.split('_'):
+            if refresh :
+                self.priority = np.zeros(len(self.history))
+                for i in range(len(self.history)):
+                    max_reward, _ = torch.max(self.model_target(torch.from_numpy(self.history[i][4]).to(self.device).float().view(1,12,self.h,self.w)), axis=1)
+                    max_reward = max_reward.detach().item() 
+                    Q = self.model(torch.from_numpy(self.history[i][0]).to(self.device).float().view(1,12,self.h,self.w))[0,self.history[i][1]].detach().item()
+                    self.priority[i] = abs((self.history[i][2] + self.gamma * max_reward - Q)) 
+                self.priority = self.priority / sum(self.priority)
+                return 0
+            priority = np.zeros(len(self.history))
+            priority[:len(self.priority)] = self.priority
+            if sum(priority)==0:
+                indices = np.random.choice(range(len(self.history)), size=self.batch_size)
+            else:
+                indices = np.random.choice(range(len(self.history)), size=self.batch_size,p=priority)
+
+            ###########################
+            return indices
         else:
-            indices = np.random.choice(range(len(self.history)), size=self.batch_size,p=priority)
-        
-        ###########################
-        return indices
+            return np.random.choice(range(len(self.history)), size=self.batch_size)
         
 
     def train(self):
@@ -171,13 +178,17 @@ class Agent_DQN(Agent):
         # optimizer = torch.optim.RMSprop(self.model.parameters(), lr=self.learning_rate,momentum=0.5)
         loss_fn = torch.nn.SmoothL1Loss()
         frame_count = 0
-        f = open(self.name+'.txt', "w")
+        if self.epoch>0:
+            f = open(self.name+'.txt', "a")
+        else:
+            f = open(self.name+'.txt', "w")
         done=False
-        for ep in range(self.episode):
+        for ep in range(self.epoch,self.episode):
             state = self.env.reset()
             state = np.swapaxes(state,0,2)/255.
             episode_reward = 0
-            
+            pre_action=[0,0,0,0,0,0,0,0,0,0]
+            smooth=None
             for timestep in range(0, self.max_steps_per_episode):
                 frame_count += 1
                 action = self.make_action(state,test=False)
@@ -196,12 +207,19 @@ class Agent_DQN(Agent):
                 #normalize reward
                 # reward = np.sign(reward)
                 # Save actions and states in replay buffer
-                self.push(state,action,reward,done,state_next)
+                
 
                 state = state_next
-
+                if 'smooth1' in self.mode.split('_'):
+                    pre_action.pop(0)
+                    pre_action.append(action)
+                    smooth = np.mean(pre_action)-0.5
+               
+                self.push(state,action,reward,done,state_next,smooth)
+                        
+                
                 if frame_count % 8 == 0 and len(self.history) >= self.buffer_size:
-                    if frame_count%800==0:
+                    if frame_count%self.history_size//10==0 and 'prioritized' in self.mode.split('_'):
                         #update priority vector
                         self.replay_buffer(refresh = True)
                     indice = self.replay_buffer()
@@ -212,6 +230,7 @@ class Agent_DQN(Agent):
                     rewards_sample = torch.from_numpy(np.array([self.history[i][2] for i in indice])).to(self.device).float()
                     done_sample = torch.from_numpy(np.array([self.history[i][3] for i in indice])).to(self.device).float()
                     next_state_sample = torch.from_numpy(np.array([self.history[i][4] for i in indice])).to(self.device).float()
+                    smooth_sample = torch.from_numpy(np.array([self.history[i][5] for i in indice])).to(self.device).float()
                     future_rewards = self.model_target(next_state_sample)
 
                     max_reward, _ = torch.max(future_rewards, axis=1)
@@ -222,10 +241,16 @@ class Agent_DQN(Agent):
                     q_values = self.model(state_sample)
                     q_action = torch.sum(q_values * mask, axis=1)
                     loss = loss_fn(q_action,updated_q_values)
+                    
+                    if 'smooth1' in self.mode.split('_') and self.delay < ep:
+                        penalty = torch.abs((ep-self.delay)/self.episode * torch.sum(smooth_sample))
+                        loss +=  penalty
+                        
                     optimizer.zero_grad()
                     loss.backward()
                     torch.nn.utils.clip_grad_norm(self.model.parameters(), 1.0)
                     optimizer.step()
+                    
 
                 if frame_count % self.update_target_network == 0:
                     self.model_target.load_state_dict(self.model.state_dict())

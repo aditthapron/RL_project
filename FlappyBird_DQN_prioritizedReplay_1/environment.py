@@ -1,3 +1,5 @@
+import os
+os.environ["SDL_VIDEODRIVER"] = "dummy"
 from ple.games.flappybird import FlappyBird
 from ple import PLE
 import numpy as np
