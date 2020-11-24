@@ -188,7 +188,7 @@ class Agent_DQN(Agent):
             state = np.swapaxes(state,0,2)/255.
             episode_reward = 0
             pre_action=[0,0,0,0,0,0,0,0,0,0]
-            smooth=None
+            smooth=0
             for timestep in range(0, self.max_steps_per_episode):
                 frame_count += 1
                 action = self.make_action(state,test=False)
@@ -213,7 +213,7 @@ class Agent_DQN(Agent):
                 if 'smooth1' in self.mode.split('_'):
                     pre_action.pop(0)
                     pre_action.append(action)
-                    smooth = np.mean(pre_action)-0.5
+                    smooth = float(np.mean(pre_action)-0.5)
                
                 self.push(state,action,reward,done,state_next,smooth)
                         
