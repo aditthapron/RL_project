@@ -6,7 +6,7 @@ import numpy as np
 
 class Environment(object):
     def __init__(self, env_name, args, atari_wrapper=False, test=False, seed=595):
-        game = FlappyBird(width=144, height=256, pipe_gap=100)
+        game = FlappyBird(width=144, height=256, pipe_gap=88)
         self.test=test
         #define reward
         reward_func = rewards = {
