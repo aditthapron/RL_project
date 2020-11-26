@@ -25,7 +25,7 @@ def parse():
 
 def test(agent, env, total_episodes=30):
     rewards = []
-    env.seed(seed)
+    #env.seed(seed)
     for i in range(total_episodes):
         state = env.reset()
         agent.init_game_setting()
