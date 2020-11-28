@@ -6,8 +6,8 @@ import numpy as np
 
 class Environment(object):
     def __init__(self, env_name, args, atari_wrapper=False, test=False, seed=595):
-        game = FlappyBird(width=144, height=256, pipe_gap=100)
-
+        game = FlappyBird(width=144, height=256, pipe_gap=88)
+        self.test=test
         #define reward
         reward_func = rewards = {
             "positive": 1,
@@ -16,6 +16,7 @@ class Environment(object):
             "loss": -5.0,
             "win": 1.0
         }
+
         self.p = PLE(game, fps=30, display_screen=False, force_fps=True, reward_values = reward_func, rng=seed)
         self.observation = np.zeros((144,256,4,3))
         # if atari_wrapper:
@@ -37,6 +38,7 @@ class Environment(object):
             observation: np.array
                 current RGB screen of game, shape: (210, 160, 3)
         '''
+
         self.p.reset_game()
         observation = self.p.getScreenRGB()
         self.observation[:,:,0:-1,:] = self.observation[:,:,1:,:]

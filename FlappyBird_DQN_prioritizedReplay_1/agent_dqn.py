@@ -105,15 +105,18 @@ class Agent_DQN(Agent):
                     obs = torch.from_numpy(observation).to(self.device).float()
                     action_prob = self.model(obs.view(1,12,self.h,self.w))
                     action = torch.argmax(action_prob).detach().item() 
+                return action
 
             else:
-                observation = np.swapaxes(observation,0,2)/255
+                observation = np.swapaxes(observation,0,2)/255.
                 obs = torch.from_numpy(observation).to(self.device).float()
                 action_prob = self.model(obs.view(1,12,self.h,self.w))
                 action = torch.argmax(action_prob).detach().item() 
+
+                return self.action[action]
         ###########################
 
-        return action
+        
     
     def push(self,state,action,reward,done,state_next,smooth=None):
         """ You can add additional arguments as you need. 
