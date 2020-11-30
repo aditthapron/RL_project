@@ -111,7 +111,7 @@ class Agent_DQN(Agent):
                 observation = np.swapaxes(observation,0,2)/255.
                 obs = torch.from_numpy(observation).to(self.device).float()
                 action_prob = self.model(obs.view(1,12,self.h,self.w))
-                action = torch.argmax(action_prob).detach().item() 
+                action = torch.argmax(action_prob).detach().item()
 
                 return self.action[action]
         ###########################

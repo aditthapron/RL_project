@@ -24,7 +24,7 @@ def parse():
     return args
 
 
-def test(agent, env, total_episodes=30):
+def test(agent, env, total_episodes=30, name = 'video'):
     rewards = []
     #env.seed(seed)
     for i in range(total_episodes):
@@ -32,19 +32,18 @@ def test(agent, env, total_episodes=30):
         agent.init_game_setting()
         done = False
         episode_reward = 0.0
-        writer = cv2.VideoWriter('test1.avi', cv2.VideoWriter_fourcc(*'PIM1'), 30, (144, 256), True)
+        writer = cv2.VideoWriter(name+'.avi', cv2.VideoWriter_fourcc(*'PIM1'), 30, (144, 256), True)
         #playing one game
         i=0
         while(not done):
             action = agent.make_action(state, test=True)
-            
             # print(action)
             state, reward, done, info = env.step(action)
             frame = state[:,:,-3:].astype(np.uint8).swapaxes(0,1)
             frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
             writer.write(frame)
             episode_reward += reward
-            if i>30*120:
+            if i>30*150:
                 break
             i+=1
         rewards.append(episode_reward)
